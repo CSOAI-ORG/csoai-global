@@ -45,7 +45,10 @@ const TIER_DEFAULTS = {
 };
 
 // ── Price ID → tier mapping (resolve tier from subscription price) ──
+// Includes all known price ID sets: legacy (price_1RTc...), membership (price_1T5f...), and MCP packs (price_1TUK...)
+// Source: stripe-id-mapping.json + PRICING_SOURCE_OF_TRUTH.md
 const PRICE_TO_TIER = {
+  // Legacy catalog (price_1RTc...)
   'price_1RTcDKRtiWejEDwD1tZtqJqY': 'starter',
   'price_1RTcD3RtiWejEDwDOiR3BIbE': 'starter',
   'price_1RTcCkRtiWejEDwD5u1Wj3Q2': 'professional',
@@ -56,6 +59,32 @@ const PRICE_TO_TIER = {
   'price_1RTcAbRtiWejEDwD9j9jCqZa': 'enterprise_full',
   'price_1RTcAFRtiWejEDwDNjjU0CpT': 'enterprise_custom',
   'price_1RTc9uRtiWejEDwDwuPo03Ir': 'enterprise_custom',
+
+  // Membership tiers (price_1T5f...)
+  'price_1T5fZbR1MkVzHj7pSb2DNjmP': 'starter',
+  'price_1T5fZbR1MkVzHj7pVeWz5G49': 'starter',
+  'price_1T5fZcR1MkVzHj7p10PUGjyc': 'professional',
+  'price_1T5fZcR1MkVzHj7pJkNyRyo0': 'professional',
+  'price_1T5fZdR1MkVzHj7p7U4mtW5Y': 'enterprise_sector',
+  'price_1T5fZdR1MkVzHj7peDFetkoJ': 'enterprise_sector',
+  'price_1T5fZeR1MkVzHj7pDkgZU5UP': 'enterprise_full',
+  'price_1T5fZeR1MkVzHj7pC34mtyY8': 'enterprise_full',
+  'price_1T5fZfR1MkVzHj7pca1Qdcu8': 'enterprise_full',
+  'price_1T5fZhR1MkVzHj7pOBeboxsT': 'enterprise_full',
+
+  // MCP Pack tiers (price_1TUK... per PRICING_SOURCE_OF_TRUTH.md)
+  'price_1TUKOtQvIueK5XpbLsnE5vJ5': 'starter',
+  'price_1TUKPtQvIueK5XpbLsnE5vJ5': 'starter',
+  'price_1TUKOuQvIueK5XpbU2uVM87H': 'professional',
+  'price_1TUKPuQvIueK5XpbU2uVM87H': 'professional',
+  'price_1TUKOvQvIueK5XpbaANgKzER': 'professional',
+  'price_1TUKPvQvIueK5XpbaANgKzER': 'professional',
+  'price_1TUKOwQvIueK5XpbM8AtgSxg': 'enterprise_sector',
+  'price_1TUKPwQvIueK5XpbM8AtgSxg': 'enterprise_sector',
+  'price_1TUKOvQvIueK5Xpbx2PspAy6': 'enterprise_full',
+  'price_1TUKPvQvIueK5Xpbx2PspAy6': 'enterprise_full',
+  'price_1TUKOwQvIueK5XpbVLs5ZbCU': 'enterprise_full',
+  'price_1TUKPwQvIueK5XpbVLs5ZbCU': 'enterprise_full',
 };
 
 // ── Credit pack price → credit amount ──
@@ -208,8 +237,20 @@ async function handleNewSubscription(session) {
       expand: ['items.data.price'],
     });
     const priceId = sub.items.data[0]?.price?.id;
-    if (priceId && PRICE_TO_TIER[priceId]) {
-      tier = PRICE_TO_TIER[priceId];
+    if (priceId) {
+      if (PRICE_TO_TIER[priceId]) {
+        tier = PRICE_TO_TIER[priceId];
+      } else {
+        try {
+          const priceObj = sub.items.data[0]?.price;
+          if (priceObj?.product?.metadata?.tier) {
+            tier = priceObj.product.metadata.tier;
+          }
+        } catch (e) {
+          console.warn('[WEBHOOK] Could not resolve tier from price metadata:', e.message);
+        }
+        console.warn(`[WEBHOOK] Unknown price ID: ${priceId} — tier defaulted to '${tier}'. Add to PRICE_TO_TIER mapping.`);
+      }
     }
   }
 
