@@ -16,7 +16,7 @@
     "stripe": "^14.25.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.2",
+    "@playwright/test": "^1.61.0",
     "axe-core": "^4.11.1",
     "cypress": "^13.6.0",
     "cypress-axe": "^1.7.0"
